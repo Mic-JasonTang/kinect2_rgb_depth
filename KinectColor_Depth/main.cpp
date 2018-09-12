@@ -323,7 +323,7 @@ cv::Mat ConvertMat(const RGBQUAD* pBuffer, int nWidth, int nHeight)
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT GetScreenshotFileName(_Out_writes_z_(nFilePathSize) LPWSTR lpszFilePath, UINT nFilePathSize, boolean bdepth)
+HRESULT GetScreenshotFileName(_Out_writes_z_(nFilePathSize) LPWSTR lpszFilePath, UINT nFilePathSize, int filetype)
 {
 	WCHAR* pszKnownPath = NULL;
 	HRESULT hr = SHGetKnownFolderPath(FOLDERID_Pictures, 0, NULL, &pszKnownPath);
@@ -335,10 +335,13 @@ HRESULT GetScreenshotFileName(_Out_writes_z_(nFilePathSize) LPWSTR lpszFilePath,
 		GetTimeFormatEx(NULL, 0, NULL, L"HH'-'mm'-'ss", szTimeString, _countof(szTimeString));
 
 		// File name will be KinectScreenshotDepth-HH-MM-SS.bmp
-		if (bdepth)
-			StringCchPrintfW(lpszFilePath, nFilePathSize, L"%s\\kinect\\KinectScreenshot-Depth-%s.bmp", pszKnownPath, szTimeString);
-		else 
+		if (filetype == 1)
 			StringCchPrintfW(lpszFilePath, nFilePathSize, L"%s\\kinect\\KinectScreenshot-Color-%s.bmp", pszKnownPath, szTimeString);
+		else if (filetype == 2)
+			StringCchPrintfW(lpszFilePath, nFilePathSize, L"%s\\kinect\\KinectScreenshot-Depth-%s.bmp", pszKnownPath, szTimeString);
+		else if (filetype == 3)
+			StringCchPrintfW(lpszFilePath, nFilePathSize, L"%s\\kinect\\KinectScreenshot-DepthColor-%s.bmp", pszKnownPath, szTimeString);
+
 	}
 
 	if (pszKnownPath)
@@ -367,19 +370,19 @@ void main()
 	////////////////////////////////////////////////////////////////
 	int depth_width = 512; //depth图像就是这么小
 	int depth_height = 424;
-	int color_widht = 1920; //color图像就是辣么大
+	int color_width = 1920; //color图像就是辣么大
 	int color_height = 1080;
 
 	cv::Mat depthImg_show = cv::Mat::zeros(depth_height, depth_width, CV_8UC3);//原始UINT16 深度图像不适合用来显示，所以需要砍成8位的就可以了，但是显示出来也不是非常好，最好能用原始16位图像颜色编码，凑合着看了
 	cv::Mat depthImg = cv::Mat::zeros(depth_height, depth_width, CV_16UC1);//the depth image
-	cv::Mat colorImg = cv::Mat::zeros(color_height, color_widht, CV_8UC3);//the color image
+	cv::Mat colorImg = cv::Mat::zeros(color_height, color_width, CV_8UC3);//the color image
 	// Current Kinect
 	IKinectSensor* m_pKinectSensor = NULL;
 	// Depth reader
 	IDepthFrameReader*  m_pDepthFrameReader = NULL;
 	// Color reader
 	IColorFrameReader*  m_pColorFrameReader = NULL;
-	RGBQUAD* m_pColorRGBX = new RGBQUAD[color_widht * color_height];
+	RGBQUAD* m_pColorRGBX = new RGBQUAD[color_width * color_height];
 	//open it!
 	HRESULT hr;
 
@@ -447,17 +450,25 @@ void main()
 	UINT nBufferSize_coloar = 0;
 	RGBQUAD *pBuffer_color = NULL;
 
+	Mat i_rgb(color_height, color_width, CV_8UC4);      //注意：这里必须为4通道的图，Kinect的数据只能以Bgra格式传出
+	Mat depthToRgb(depth_height, depth_width, CV_8UC4);
 	cout << "Press the key 's' to save depth and color image, press the key 'q' to quit." << endl;
+
 	while (true) // 貌似要一直尝试，不一定每次都能读取到图像
 	{
 
 		//color frame
 		IColorFrame* pColorFrame = NULL;
 		hr = m_pColorFrameReader->AcquireLatestFrame(&pColorFrame);
+		
+		// color拷贝到图片中
+		UINT nColorBufferSize = color_width * color_height * 4;
+		if (SUCCEEDED(hr))
+			hr = pColorFrame->CopyConvertedFrameDataToArray(nColorBufferSize, reinterpret_cast<BYTE*>(i_rgb.data), ColorImageFormat::ColorImageFormat_Bgra);
+
 		ColorImageFormat imageFormat = ColorImageFormat_None;
 		if (SUCCEEDED(hr))
 		{
-			ColorImageFormat imageFormat = ColorImageFormat_None;
 			if (SUCCEEDED(hr))
 			{
 				hr = pColorFrame->get_RawColorImageFormat(&imageFormat);
@@ -471,36 +482,79 @@ void main()
 				else if (m_pColorRGBX)
 				{
 					pBuffer_color = m_pColorRGBX;
-					nBufferSize_coloar = color_widht * color_height * sizeof(RGBQUAD);
+					nBufferSize_coloar = color_width * color_height * sizeof(RGBQUAD);
 					hr = pColorFrame->CopyConvertedFrameDataToArray(nBufferSize_coloar, reinterpret_cast<BYTE*>(pBuffer_color), ColorImageFormat_Bgra);
 				}
 				else
 				{
 					hr = E_FAIL;
 				}
-				colorImg = ConvertMat(pBuffer_color, color_widht, color_height);
+				colorImg = ConvertMat(pBuffer_color, color_width, color_height);
 			}
-
 			SafeRelease(pColorFrame);
 		}
-
 		// depth frame
 		IDepthFrame* pDepthFrame = NULL;
 		// acquire depth frame
 		HRESULT hr = m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
-		//// save depth data to array
-		//UINT16 *depthData = new UINT16[depth_width * depth_height];
-		//hr = pDepthFrame->CopyFrameDataToArray(depth_width * depth_height, depthData);
-
-		//ICoordinateMapper*      m_pCoordinateMapper;
-		//hr = m_pKinectSensor->get_CoordinateMapper(&m_pCoordinateMapper);
-
-		//ColorSpacePoint* m_pColorCoordinates = new ColorSpacePoint[depth_width * depth_height];
-		//HRESULT hr = m_pCoordinateMapper->MapDepthFrameToColorSpace(depth_width * depth_height, depthData,
-		//															depth_width * depth_height, m_pColorCoordinates);
-
+		
 		if (SUCCEEDED(hr))
 		{
+			// save depth data to array
+			UINT16 *depthData = new UINT16[depth_width * depth_height];
+			hr = pDepthFrame->CopyFrameDataToArray(depth_width * depth_height, depthData);
+			
+			ICoordinateMapper*      m_pCoordinateMapper;
+			hr = m_pKinectSensor->get_CoordinateMapper(&m_pCoordinateMapper);
+
+			ColorSpacePoint* m_pColorCoordinates = new ColorSpacePoint[depth_width * depth_height];
+			hr = m_pCoordinateMapper->MapDepthFrameToColorSpace(depth_width * depth_height, depthData,
+																		depth_width * depth_height, m_pColorCoordinates);
+
+			if (SUCCEEDED(hr))
+			{
+				for (int i = 0; i < depth_width * depth_height; i++)
+				{
+					ColorSpacePoint p = m_pColorCoordinates[i];
+					if (p.X != -std::numeric_limits<float>::infinity() && p.Y != -std::numeric_limits<float>::infinity())
+					{
+						int colorX = static_cast<int>(p.X + 0.5f);
+						int colorY = static_cast<int>(p.Y + 0.5f);
+
+						if ((colorX >= 0 && colorX < color_width) && (colorY >= 0 && colorY < color_height))
+						{
+							depthToRgb.data[i * 4 + 0] = i_rgb.data[(colorY * color_width + colorX) * 4 + 0];
+							depthToRgb.data[i * 4 + 1] = i_rgb.data[(colorY * color_width + colorX) * 4 + 1];
+							depthToRgb.data[i * 4 + 2] = i_rgb.data[(colorY * color_width + colorX) * 4 + 2];
+							depthToRgb.data[i * 4 + 3] = i_rgb.data[(colorY * color_width + colorX) * 4 + 3];
+						}
+					}
+				}
+			}
+			//CameraSpacePoint* m_pCameraCoordinates = new CameraSpacePoint[512 * 424];
+			//hr = m_pCoordinateMapper->MapDepthFrameToCameraSpace(512 * 424, depthData, 512 * 424, m_pCameraCoordinates);
+			//if (SUCCEEDED(hr))
+			//{
+			//	for (int i = 0; i < 512 * 424; i++)
+			//	{
+			//		CameraSpacePoint p = m_pCameraCoordinates[i];
+			//		if (p.X != -std::numeric_limits<float>::infinity() && p.Y != -std::numeric_limits<float>::infinity() && p.Z != -std::numeric_limits<float>::infinity())
+			//		{
+			//			float cameraX = static_cast<float>(p.X);
+			//			float cameraY = static_cast<float>(p.Y);
+			//			float cameraZ = static_cast<float>(p.Z);
+
+			//			cout << "x: " << cameraX << "y: " << cameraY << "z: " << cameraZ << endl;
+			//			//GLubyte *rgb = new GLubyte();
+			//			//rgb[2] = depthToRgb.data[i * 4 + 0];
+			//			//rgb[1] = depthToRgb.data[i * 4 + 1];
+			//			//rgb[0] = depthToRgb.data[i * 4 + 2];
+			//			//// 显示点
+			//			//glColor3ubv(rgb);
+			//			//glVertex3f(cameraX, -cameraY, cameraZ);
+			//		}
+			//	}
+			//}
 			USHORT nDepthMinReliableDistance = 0;
 			USHORT nDepthMaxReliableDistance = 0;
 			if (SUCCEEDED(hr))
@@ -522,7 +576,7 @@ void main()
 
 		cv::imshow("depth", depthImg_show);
 		cv::imshow("color", colorImg);
-
+		cv::imshow("rgb2depth", depthToRgb);
 		char key = cv::waitKey(1);
 
 		if (key == 'q')
@@ -534,20 +588,27 @@ void main()
 		{
 			WCHAR szScreenshotPath[MAX_PATH];
 			// Retrieve the path to My Photos
-			GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath), false);
+			GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath), 1);
 			string filename;
 			Wchar_tToString(filename, szScreenshotPath);
 			// Write out the color bitmap to disk
 			cv::imwrite(filename, colorImg);
-			wcout << "Color screenshot saved to" << szScreenshotPath << endl;
+			wcout << "Color screenshot saved to " << szScreenshotPath << endl;
 			
 			// Retrieve the path to My Photos
-			GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath), true);
+			GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath), 2);
 			filename;
 			Wchar_tToString(filename, szScreenshotPath);
 			// Write out the depth bitmap to disk
 			cv::imwrite(filename, depthImg_show);
-			wcout << "Depth screenshot saved to" << szScreenshotPath << endl;
+			wcout << "Depth screenshot saved to " << szScreenshotPath << endl;
+
+			GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath), 3);
+			filename;
+			Wchar_tToString(filename, szScreenshotPath);
+			// Write out the depth bitmap to disk
+			cv::imwrite(filename, depthToRgb);
+			wcout << "DepthColor screenshot saved to " << szScreenshotPath << endl;
 		}
 	}
 	
