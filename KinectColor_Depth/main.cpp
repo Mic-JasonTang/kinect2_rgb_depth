@@ -1,269 +1,9 @@
-//
-//#include "ImageRenderer.h"
-//#include "stdafx.h"
-//#include <strsafe.h>
-//
-//static const int        cDepthWidth = 512;
-//static const int        cDepthHeight = 424;
-//
-//// Current Kinect
-//IKinectSensor*          m_pKinectSensor;
-//
-//// Depth reader
-//IDepthFrameReader*      m_pDepthFrameReader;
-//
-//// Direct2D
-//ImageRenderer*          m_pDrawDepth;
-//ID2D1Factory*           m_pD2DFactory;
-//RGBQUAD*                m_pDepthRGBX;
-//
-///// <summary>
-///// Main processing function
-///// </summary>
-//void                    Update(boolean bsave);
-//
-///// <summary>
-///// Initializes the default Kinect sensor
-///// </summary>
-///// <returns>S_OK on success, otherwise failure code</returns>
-//HRESULT                 InitializeDefaultSensor();
-//
-///// <summary>
-///// Handle new depth data
-///// <param name="nTime">timestamp of frame</param>
-///// <param name="pBuffer">pointer to frame data</param>
-///// <param name="nWidth">width (in pixels) of input image data</param>
-///// <param name="nHeight">height (in pixels) of input image data</param>
-///// <param name="nMinDepth">minimum reliable depth</param>
-///// <param name="nMaxDepth">maximum reliable depth</param>
-///// </summary>
-//void                    ProcessDepth(INT64 nTime, const UINT16* pBuffer, int nHeight, int nWidth, USHORT nMinDepth, USHORT nMaxDepth, boolean bsave);
-//
-///// <summary>
-///// Get the name of the file where screenshot will be stored.
-///// </summary>
-///// <param name="lpszFilePath">string buffer that will receive screenshot file name.</param>
-///// <param name="nFilePathSize">number of characters in lpszFilePath string buffer.</param>
-///// <returns>
-///// S_OK on success, otherwise failure code.
-///// </returns>
-//HRESULT                 GetScreenshotFileName(_Out_writes_z_(nFilePathSize) LPWSTR lpszFilePath, UINT nFilePathSize);
-//
-///// <summary>
-///// Save passed in image data to disk as a bitmap
-///// </summary>
-///// <param name="pBitmapBits">image data to save</param>
-///// <param name="lWidth">width (in pixels) of input image data</param>
-///// <param name="lHeight">height (in pixels) of input image data</param>
-///// <param name="wBitsPerPixel">bits per pixel of image data</param>
-///// <param name="lpszFilePath">full file path to output bitmap to</param>
-///// <returns>indicates success or failure</returns>
-//HRESULT                 SaveBitmapToFile(BYTE* pBitmapBits, LONG lWidth, LONG lHeight, WORD wBitsPerPixel, LPCWSTR lpszFilePath);
-//
-//int main()
-//{
-//	InitializeDefaultSensor();
-//	while (1){
-//		Update(false);
-//	}
-//	return 0;
-//}
-//
-//
-///// <summary>
-///// Initializes the default Kinect sensor
-///// </summary>
-///// <returns>indicates success or failure</returns>
-//HRESULT InitializeDefaultSensor()
-//{
-//
-//	HRESULT hr;
-//
-//	hr = GetDefaultKinectSensor(&m_pKinectSensor);
-//	if (FAILED(hr))
-//	{
-//		return hr;
-//	}
-//
-//	if (m_pKinectSensor)
-//	{
-//		// Initialize the Kinect and get the depth reader
-//		IDepthFrameSource* pDepthFrameSource = NULL;
-//
-//		hr = m_pKinectSensor->Open();
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = m_pKinectSensor->get_DepthFrameSource(&pDepthFrameSource);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = pDepthFrameSource->OpenReader(&m_pDepthFrameReader);
-//		}
-//
-//		SafeRelease(pDepthFrameSource);
-//	}
-//
-//	if (!m_pKinectSensor || FAILED(hr))
-//	{
-//		printf("No ready Kinect found!");
-//		return E_FAIL;
-//	}
-//	printf("Kinect ready!");
-//	return hr;
-//}
-//
-///// <summary>
-///// Main processing function
-///// </summary>
-//void Update(boolean bsave)
-//{
-//	if (!m_pDepthFrameReader)
-//	{
-//		return;
-//	}
-//
-//	IDepthFrame* pDepthFrame = NULL;
-//
-//	HRESULT hr = m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
-//
-//	if (SUCCEEDED(hr))
-//	{
-//		INT64 nTime = 0;
-//		IFrameDescription* pFrameDescription = NULL;
-//		int nWidth = 0;
-//		int nHeight = 0;
-//		USHORT nDepthMinReliableDistance = 0;
-//		USHORT nDepthMaxDistance = 0;
-//		UINT nBufferSize = 0;
-//		UINT16 *pBuffer = NULL;
-//
-//		hr = pDepthFrame->get_RelativeTime(&nTime);
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = pDepthFrame->get_FrameDescription(&pFrameDescription);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = pFrameDescription->get_Width(&nWidth);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = pFrameDescription->get_Height(&nHeight);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = pDepthFrame->get_DepthMinReliableDistance(&nDepthMinReliableDistance);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			// In order to see the full range of depth (including the less reliable far field depth)
-//			// we are setting nDepthMaxDistance to the extreme potential depth threshold
-//			nDepthMaxDistance = USHRT_MAX;
-//
-//			// Note:  If you wish to filter by reliable depth distance, uncomment the following line.
-//			//// hr = pDepthFrame->get_DepthMaxReliableDistance(&nDepthMaxDistance);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			hr = pDepthFrame->AccessUnderlyingBuffer(&nBufferSize, &pBuffer);
-//		}
-//
-//		if (SUCCEEDED(hr))
-//		{
-//			ProcessDepth(nTime, pBuffer, nWidth, nHeight, nDepthMinReliableDistance, nDepthMaxDistance, bsave);
-//		}
-//
-//		SafeRelease(pFrameDescription);
-//	}
-//
-//	SafeRelease(pDepthFrame);
-//}
-//
-///// <summary>
-///// Handle new depth data
-///// <param name="nTime">timestamp of frame</param>
-///// <param name="pBuffer">pointer to frame data</param>
-///// <param name="nWidth">width (in pixels) of input image data</param>
-///// <param name="nHeight">height (in pixels) of input image data</param>
-///// <param name="nMinDepth">minimum reliable depth</param>
-///// <param name="nMaxDepth">maximum reliable depth</param>
-///// </summary>
-//void ProcessDepth(INT64 nTime, const UINT16* pBuffer, int nWidth, int nHeight, USHORT nMinDepth, USHORT nMaxDepth, boolean bsave)
-//{
-//
-//	// Make sure we've received valid data
-//	if (m_pDepthRGBX && pBuffer && (nWidth == cDepthWidth) && (nHeight == cDepthHeight))
-//	{
-//		RGBQUAD* pRGBX = m_pDepthRGBX;
-//
-//		// end pixel is start + width*height - 1
-//		const UINT16* pBufferEnd = pBuffer + (nWidth * nHeight);
-//
-//		while (pBuffer < pBufferEnd)
-//		{
-//			USHORT depth = *pBuffer;
-//
-//			// To convert to a byte, we're discarding the most-significant
-//			// rather than least-significant bits.
-//			// We're preserving detail, although the intensity will "wrap."
-//			// Values outside the reliable depth range are mapped to 0 (black).
-//
-//			// Note: Using conditionals in this loop could degrade performance.
-//			// Consider using a lookup table instead when writing production code.
-//			BYTE intensity = static_cast<BYTE>((depth >= nMinDepth) && (depth <= nMaxDepth) ? (depth % 256) : 0);
-//
-//			pRGBX->rgbRed = intensity;
-//			pRGBX->rgbGreen = intensity;
-//			pRGBX->rgbBlue = intensity;
-//
-//			++pRGBX;
-//			++pBuffer;
-//		}
-//
-//		// Draw the data with Direct2D
-//		m_pDrawDepth->Draw(reinterpret_cast<BYTE*>(m_pDepthRGBX), cDepthWidth * cDepthHeight * sizeof(RGBQUAD));
-//
-//		if (bsave)
-//		{
-//			WCHAR szScreenshotPath[MAX_PATH];
-//
-//			// Retrieve the path to My Photos
-//			GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath));
-//
-//			// Write out the bitmap to disk
-//			HRESULT hr = SaveBitmapToFile(reinterpret_cast<BYTE*>(m_pDepthRGBX), nWidth, nHeight, sizeof(RGBQUAD) * 8, szScreenshotPath);
-//
-//			WCHAR szStatusMessage[64 + MAX_PATH];
-//			if (SUCCEEDED(hr))
-//			{
-//				// Set the status bar to show where the screenshot was saved
-//				StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L"Screenshot saved to %s", szScreenshotPath);
-//			}
-//			else
-//			{
-//				StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L"Failed to write screenshot to %s", szScreenshotPath);
-//			}
-//			bsave = false; 
-//		}
-//	}
-//}
-//
-
 #include "highgui.hpp"
 #include "core/mat.hpp"
 #include "stdafx.h"
 #include "iostream"
 #include <strsafe.h>
 #include "string"
-//#include "DepthBasics.h"
 
 using namespace cv;
 using namespace std;
@@ -450,6 +190,7 @@ void main()
 	UINT nBufferSize_coloar = 0;
 	RGBQUAD *pBuffer_color = NULL;
 
+	// 用于对齐的2个变量
 	Mat i_rgb(color_height, color_width, CV_8UC4);      //注意：这里必须为4通道的图，Kinect的数据只能以Bgra格式传出
 	Mat depthToRgb(depth_height, depth_width, CV_8UC4);
 	cout << "Press the key 's' to save depth and color image, press the key 'q' to quit." << endl;
@@ -497,14 +238,13 @@ void main()
 		IDepthFrame* pDepthFrame = NULL;
 		// acquire depth frame
 		HRESULT hr = m_pDepthFrameReader->AcquireLatestFrame(&pDepthFrame);
-		
+		ICoordinateMapper*      m_pCoordinateMapper = NULL;
+		// save depth data to array
+		UINT16 *depthData = new UINT16[depth_width * depth_height];
 		if (SUCCEEDED(hr))
 		{
-			// save depth data to array
-			UINT16 *depthData = new UINT16[depth_width * depth_height];
 			hr = pDepthFrame->CopyFrameDataToArray(depth_width * depth_height, depthData);
 			
-			ICoordinateMapper*      m_pCoordinateMapper;
 			hr = m_pKinectSensor->get_CoordinateMapper(&m_pCoordinateMapper);
 
 			ColorSpacePoint* m_pColorCoordinates = new ColorSpacePoint[depth_width * depth_height];
@@ -531,30 +271,6 @@ void main()
 					}
 				}
 			}
-			//CameraSpacePoint* m_pCameraCoordinates = new CameraSpacePoint[512 * 424];
-			//hr = m_pCoordinateMapper->MapDepthFrameToCameraSpace(512 * 424, depthData, 512 * 424, m_pCameraCoordinates);
-			//if (SUCCEEDED(hr))
-			//{
-			//	for (int i = 0; i < 512 * 424; i++)
-			//	{
-			//		CameraSpacePoint p = m_pCameraCoordinates[i];
-			//		if (p.X != -std::numeric_limits<float>::infinity() && p.Y != -std::numeric_limits<float>::infinity() && p.Z != -std::numeric_limits<float>::infinity())
-			//		{
-			//			float cameraX = static_cast<float>(p.X);
-			//			float cameraY = static_cast<float>(p.Y);
-			//			float cameraZ = static_cast<float>(p.Z);
-
-			//			cout << "x: " << cameraX << "y: " << cameraY << "z: " << cameraZ << endl;
-			//			//GLubyte *rgb = new GLubyte();
-			//			//rgb[2] = depthToRgb.data[i * 4 + 0];
-			//			//rgb[1] = depthToRgb.data[i * 4 + 1];
-			//			//rgb[0] = depthToRgb.data[i * 4 + 2];
-			//			//// 显示点
-			//			//glColor3ubv(rgb);
-			//			//glVertex3f(cameraX, -cameraY, cameraZ);
-			//		}
-			//	}
-			//}
 			USHORT nDepthMinReliableDistance = 0;
 			USHORT nDepthMaxReliableDistance = 0;
 			if (SUCCEEDED(hr))
@@ -610,6 +326,31 @@ void main()
 			cv::imwrite(filename, depthToRgb);
 			wcout << "DepthColor screenshot saved to " << szScreenshotPath << endl;
 		}
+		//if (key == 'p')
+		//{
+		//	if (m_pCoordinateMapper != NULL)
+		//	{
+		//		CameraSpacePoint* m_pCameraCoordinates = new CameraSpacePoint[512 * 424];
+		//		hr = m_pCoordinateMapper->MapDepthFrameToCameraSpace(512 * 424, depthData, 512 * 424, m_pCameraCoordinates);
+		//		if (SUCCEEDED(hr))
+		//		{
+		//			for (int i = 0; i < 512 * 424; i++)
+		//			{
+		//				CameraSpacePoint p = m_pCameraCoordinates[i];
+		//				if (p.X != -std::numeric_limits<float>::infinity() && p.Y != -std::numeric_limits<float>::infinity() && p.Z != -std::numeric_limits<float>::infinity())
+		//				{
+		//					float cameraX = static_cast<float>(p.X);
+		//					float cameraY = static_cast<float>(p.Y);
+		//					float cameraZ = static_cast<float>(p.Z);
+
+		//					cout << "x: " << cameraX << "y: " << cameraY << "z: " << cameraZ;
+		//					// 显示点
+		//					//cout << "r: " << depthToRgb.data[i * 4 + 0] << "g: " << depthToRgb.data[i * 4 + 1] << "b: " << depthToRgb.data[i * 4 + 2] << endl;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 	}
 	
 	// release resource
