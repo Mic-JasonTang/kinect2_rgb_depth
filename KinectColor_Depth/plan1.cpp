@@ -1,5 +1,5 @@
-#include "highgui.hpp"
-#include "core/mat.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/opencv.hpp"
 #include "stdafx.h"
 #include "iostream"
 #include <strsafe.h>
@@ -8,6 +8,7 @@
 
 using namespace cv;
 using namespace std;
+
 
 // 转换depth图像到cv::Mat
 cv::Mat ConvertMat(const UINT16* pBuffer, int nWidth, int nHeight, USHORT nMinDepth, USHORT nMaxDepth)
@@ -106,7 +107,7 @@ void Wchar_tToString(std::string& szDst, wchar_t *wchar)
 }
 
 
-void main()
+void main2()
 {
 	//常量定义
 	int depth_width = 512; //depth图像就是这么小
