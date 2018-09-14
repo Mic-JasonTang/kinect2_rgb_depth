@@ -140,7 +140,7 @@ void main()
 	// 用于对齐的2个变量
 	Mat i_rgb(color_height, color_width, CV_8UC4);      //注意：这里必须为4通道的图，Kinect的数据只能以Bgra格式传出
 	Mat depthToRgb(depth_height, depth_width, CV_8UC4);
-
+	
 	//color frame
 	IColorFrame* pColorFrame = NULL;
 	// color size
@@ -393,9 +393,7 @@ void main()
 	}
 	// close the Kinect Sensor
 	if (m_pKinectSensor)
-	{
 		m_pKinectSensor->Close();
-	}
 	cv::destroyAllWindows();
 	SafeRelease(m_pKinectSensor);
 }
